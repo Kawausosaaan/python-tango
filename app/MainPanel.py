@@ -227,33 +227,116 @@ class MainPanel:
 
     # ----- study actions ------------------------------------------------------
     def next_word(self) -> None:
+        """ツリーの表示順で次の単語へ（兄弟ノード順に従う）"""
         ws = self._siblings_words()
         if not ws:
             self.right.set_word("(単語がありません)")
             self.right.set_meaning("")
             return
-        self.cursor_in_parent = (self.cursor_in_parent + 1) % len(ws)
-        self._apply_cursor()
+
+        # カーソル未設定なら先頭から、以降は +1 で巡回
+        if self.cursor_in_parent < 0 or self.cursor_in_parent >= len(ws):
+            self.cursor_in_parent = 0
+        else:
+            self.cursor_in_parent = (self.cursor_in_parent + 1) % len(ws)
+
+        # ここから現在語を反映
+        iid = ws[self.cursor_in_parent]
+        idx = int(iid.split(":")[1])
+        self.current_index = idx
+        self.current_word = self.words[idx]
+
+        # 単語表示（runs があれば優先）
+        w_runs = self.current_word.get("word_runs")
+        if isinstance(w_runs, list) and w_runs:
+            self._render_runs(self.right.word_area, w_runs)
+        else:
+            self.right.set_word(self.current_word.get("word", ""))
+
+        # 意味は隠す
+        self.right.set_meaning("???")
+
+        # ツリー選択同期
+        self.left.tree.selection_set(iid)
+        self.left.tree.focus(iid)
+        self.left.tree.see(iid)
 
     def prev_word(self) -> None:
+        """ツリーの表示順で前の単語へ（兄弟ノード順に従う）"""
         ws = self._siblings_words()
         if not ws:
             self.right.set_word("(単語がありません)")
             self.right.set_meaning("")
             return
-        self.cursor_in_parent = (self.cursor_in_parent - 1) % len(ws)
-        self._apply_cursor()
+
+        # カーソル未設定なら末尾から、以降は -1 で巡回
+        if self.cursor_in_parent < 0 or self.cursor_in_parent >= len(ws):
+            self.cursor_in_parent = len(ws) - 1
+        else:
+            self.cursor_in_parent = (self.cursor_in_parent - 1) % len(ws)
+
+        # ここから現在語を反映
+        iid = ws[self.cursor_in_parent]
+        idx = int(iid.split(":")[1])
+        self.current_index = idx
+        self.current_word = self.words[idx]
+
+        # 単語表示（runs があれば優先）
+        w_runs = self.current_word.get("word_runs")
+        if isinstance(w_runs, list) and w_runs:
+            self._render_runs(self.right.word_area, w_runs)
+        else:
+            self.right.set_word(self.current_word.get("word", ""))
+
+        # 意味は隠す
+        self.right.set_meaning("???")
+
+        # ツリー選択同期
+        self.left.tree.selection_set(iid)
+        self.left.tree.focus(iid)
+        self.left.tree.see(iid)
 
     def show_meaning(self) -> None:
-        if self.current_word:
+        """現在語の意味を表示（runs があれば優先）"""
+        if not self.current_word:
+            return
+        m_runs = self.current_word.get("meaning_runs")
+        if isinstance(m_runs, list) and m_runs:
+            self._render_runs(self.right.meaning_area, m_runs)
+        else:
             self.right.set_meaning(self.current_word.get("meaning", ""))
 
     # ----- renderer (mixed JP/EN with auto height) ---------------------------
-    def insert_mixed_text(self, widget: tk.Text, text: str) -> None:
+    def insert_mixed_text(self, widget: tk.Text, text_or_runs) -> None:
+        # text_or_runs: str | List[{"text": str, "color": "red"|"blue"|""}]
         widget.configure(state="normal")
         widget.delete("1.0", "end")
-        for ch in text:
-            widget.insert("end", ch, "japanese" if self.is_japanese(ch) else "english")
+
+        # 色タグが無いと困るので一応定義（重複定義は無害）
+        try:
+            widget.tag_configure("red", foreground="red")
+            widget.tag_configure("blue", foreground="blue")
+        except Exception:
+            pass
+
+        def put_text(seg_text: str, color_tag: str | None):
+            # 1文字ずつ言語タグを付けながら挿入し、色タグは範囲タグで被せる
+            start_idx = widget.index("end-1c")
+            for ch in seg_text:
+                tag = "japanese" if self.is_japanese(ch) else "english"
+                widget.insert("end", ch, tag)
+            end_idx = widget.index("end-1c")
+            if color_tag in ("red", "blue"):
+                widget.tag_add(color_tag, start_idx, end_idx)
+
+        if isinstance(text_or_runs, list):
+            for run in text_or_runs:
+                seg = run.get("text", "")
+                color = run.get("color", "")
+                put_text(seg, color if color in ("red", "blue") else None)
+        else:
+            put_text(str(text_or_runs or ""), None)
+
         widget.configure(state="disabled")
         min_h = getattr(widget, "_auto_min_h", 1)
         max_h = getattr(widget, "_auto_max_h", 6)
@@ -391,3 +474,102 @@ class MainPanel:
             elif child.startswith("g:"):
                 out.extend(self._collect_word_indices_under(child))
         return out
+
+    def _render_with_runs(self, widget: tk.Text, runs, fallback_text: str) -> None:
+        """runs(list[{'text','fg','bg','bold','italic','underline'}])があれば優先表示。
+        無ければ fallback_text を従来レンダラーで表示。
+        """
+        if not runs:
+            # 既存の混在レンダラーを使用（英日フォント＆高さ自動）
+            self.insert_mixed_text(widget, fallback_text)
+            return
+
+        # runs で描画
+        widget.configure(state="normal")
+        widget.delete("1.0", "end")
+        for seg in runs:
+            text = seg.get("text", "")
+            tags = []
+            fg = seg.get("fg")
+            bg = seg.get("bg")
+            if fg:
+                t = f"fg_{fg}"
+                if not widget.tag_names().__contains__(t):
+                    widget.tag_config(t, foreground=fg)
+                tags.append(t)
+            if bg:
+                t = f"bg_{bg}"
+                if not widget.tag_names().__contains__(t):
+                    widget.tag_config(t, background=bg)
+                tags.append(t)
+            if seg.get("bold"):
+                if "bold" not in widget.tag_names():
+                    import tkinter.font as tkfont
+
+                    base = tkfont.Font(font=widget.cget("font"))
+                    boldf = tkfont.Font(font=widget.cget("font"))
+                    boldf.configure(weight="bold")
+                    widget.tag_config("bold", font=boldf)
+                tags.append("bold")
+            if seg.get("italic"):
+                if "italic" not in widget.tag_names():
+                    import tkinter.font as tkfont
+
+                    ital = tkfont.Font(font=widget.cget("font"))
+                    ital.configure(slant="italic")
+                    widget.tag_config("italic", font=ital)
+                tags.append("italic")
+            if seg.get("underline"):
+                if "ul" not in widget.tag_names():
+                    widget.tag_config("ul", underline=1)
+                tags.append("ul")
+
+            widget.insert("end", text, tuple(tags) if tags else ())
+        widget.configure(state="disabled")
+
+        # 高さ自動（既存ヘルパを活用）
+        min_h = getattr(widget, "_auto_min_h", 1)
+        max_h = getattr(widget, "_auto_max_h", 6)
+        self._adjust_text_size(widget, min_height=min_h, max_height=max_h)
+
+    def _render_current(self) -> None:
+        """現在の self.current_word を runs 優先で表示（意味は???に）"""
+        item = self.current_word or {}
+        self._render_with_runs(
+            self.right.word_area, item.get("word_runs"), item.get("word", "")
+        )
+        # 意味は「隠す」仕様のまま
+        self.insert_mixed_text(self.right.meaning_area, "???")
+
+    def _render_runs(self, widget: tk.Text, runs: list) -> None:
+        """runs = [{"text": "...", "fg": "red/blue/#rrggbb/black", ...}] を描画"""
+        widget.configure(state="normal")
+        widget.delete("1.0", "end")
+
+        # よく使う前景色タグを用意（なければ作る）
+        def ensure_fg_tag(color: str) -> str:
+            tag = f"fg::{color}"
+            try:
+                widget.tag_cget(tag, "foreground")
+            except Exception:
+                widget.tag_config(tag, foreground=color)
+            return tag
+
+        for seg in runs:
+            if not isinstance(seg, dict):
+                continue
+            text = seg.get("text", "")
+            if not isinstance(text, str) or text == "":
+                continue
+
+            tags = []
+            fg = seg.get("fg")
+            if isinstance(fg, str) and fg:
+                tags.append(ensure_fg_tag(fg))
+
+            # 必要なら太字/斜体/下線なども対応可能（任意）
+            # if seg.get("bold") is True: ...
+            # if seg.get("underline") is True: ...
+
+            widget.insert("end", text, tuple(tags) if tags else ())
+        widget.configure(state="disabled")

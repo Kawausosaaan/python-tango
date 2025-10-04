@@ -96,6 +96,8 @@ class RightPanel(tk.Frame):
         # 可変高さに使う最小/最大を属性に付与
         txt._auto_min_h = min_h  # type: ignore[attr-defined]
         txt._auto_max_h = max_h  # type: ignore[attr-defined]
+        txt.tag_configure("red", foreground="red")
+        txt.tag_configure("blue", foreground="blue")
         return txt
 
     def set_word(self, text: str) -> None:
