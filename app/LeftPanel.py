@@ -1,4 +1,4 @@
-# app/genre_tree_pane.py
+# app/LeftPanel.py
 from __future__ import annotations
 
 import tkinter as tk
@@ -8,7 +8,7 @@ from typing import Callable, List
 from .types_ import WordItem
 
 
-class GenreTreePane(tk.Frame):
+class LeftPanel(tk.Frame):
     """Left pane (tree). Calls back with selected iid string."""
 
     def __init__(

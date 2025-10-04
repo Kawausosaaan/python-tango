@@ -1,4 +1,4 @@
-# app/wordapp.py
+# app/MainPanel.py
 from __future__ import annotations
 
 import random
@@ -6,15 +6,15 @@ import tkinter as tk
 import tkinter.font as tkfont
 from typing import Callable, List, Optional
 
-from .addworddialog import AddWordDialog
-from .genretreepane import GenreTreePane
-from .repository import WordRepository
-from .studypane import StudyPane
+from .AddWordDialog import AddWordDialog
+from .LeftPanel import LeftPanel
+from .RightPanel import RightPanel
 from .types_ import WordItem
-from .wordlistwindow import WordListWindow
+from .WordListWindow import WordListWindow
+from .WordRepository import WordRepository
 
 
-class WordApp:
+class MainPanel:
     def __init__(self, words: List[WordItem]):
         self.repo = WordRepository()
 
@@ -49,13 +49,13 @@ class WordApp:
         main.pack(fill="both", expand=True)
 
         # left
-        self.left = GenreTreePane(main, on_select_iid=self._on_tree_select_iid)
+        self.left = LeftPanel(main, on_select_iid=self._on_tree_select_iid)
         self.left.pack(side="left", fill="y")
         self.left.pack_propagate(False)
         self.left.configure(width=260)
 
         # right
-        self.right = StudyPane(
+        self.right = RightPanel(
             main,
             on_next=self.next_word,
             on_show_meaning=self.show_meaning,

@@ -1,4 +1,4 @@
-# app/study_pane.py
+# app/RightPanel.py
 from __future__ import annotations
 
 import tkinter as tk
@@ -8,7 +8,7 @@ from typing import Callable, List
 from .types_ import WordItem
 
 
-class StudyPane(tk.Frame):
+class RightPanel(tk.Frame):
     def __init__(
         self,
         parent: tk.Widget,

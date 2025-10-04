@@ -3,9 +3,9 @@ from __future__ import annotations
 
 from typing import List
 
-from .repository import WordRepository
+from .MainPanel import MainPanel
 from .types_ import WordItem
-from .wordapp import WordApp
+from .WordRepository import WordRepository
 
 
 def main() -> None:
@@ -16,7 +16,7 @@ def main() -> None:
         {"word": "book", "meaning": "本", "genre": "学校/道具"},
         {"word": "computer", "meaning": "コンピュータ", "genre": "IT/機器"},
     ]
-    WordApp(loaded or initial_words).run()
+    MainPanel(loaded or initial_words).run()
 
 
 if __name__ == "__main__":
