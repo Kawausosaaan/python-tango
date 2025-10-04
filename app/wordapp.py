@@ -1,3 +1,4 @@
+# app/wordapp.py
 from __future__ import annotations
 
 import random
@@ -6,11 +7,11 @@ import tkinter.font as tkfont
 from typing import Callable, List, Optional
 
 from .addworddialog import AddWordDialog
-from .genre_tree_pane import GenreTreePane
-from .list_window import WordListWindow
+from .genretreepane import GenreTreePane
 from .repository import WordRepository
-from .study_pane import StudyPane
+from .studypane import StudyPane
 from .types_ import WordItem
+from .wordlistwindow import WordListWindow
 
 
 class WordApp:
