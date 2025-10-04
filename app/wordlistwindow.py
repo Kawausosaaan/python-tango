@@ -1,4 +1,4 @@
-# app/list_window.py
+# app/dialogs.py
 from __future__ import annotations
 
 import tkinter as tk
@@ -9,7 +9,14 @@ from .addworddialog import AddWordDialog
 from .types_ import WordItem
 
 
+# ===================== Window: List =====================
 class WordListWindow(tk.Toplevel):
+    """List/edit/delete words.
+    - Double click / Enter / F2: edit
+    - Delete / Backspace: delete selected
+    - on_changed: notify caller to save/rebuild tree/order
+    """
+
     def __init__(
         self,
         parent: tk.Widget,
@@ -33,6 +40,7 @@ class WordListWindow(tk.Toplevel):
 
         body = tk.Frame(self)
         body.pack(side="top", fill="both", expand=True)
+
         columns = ("word", "meaning", "genre")
         self.tree = ttk.Treeview(
             body, columns=columns, show="headings", height=16, selectmode="extended"

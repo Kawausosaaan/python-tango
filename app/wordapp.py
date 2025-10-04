@@ -5,7 +5,7 @@ import tkinter as tk
 import tkinter.font as tkfont
 from typing import Callable, List, Optional
 
-from .dialogs import AddWordDialog
+from .addworddialog import AddWordDialog
 from .genre_tree_pane import GenreTreePane
 from .list_window import WordListWindow
 from .repository import WordRepository
