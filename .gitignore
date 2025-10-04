@@ -5,11 +5,11 @@ __pycache__/
 build/
 dist/
 
-# venv
+# venv（プロジェクト内にあるなら）
 .venv/
 venv/
 
-# Editor / OS
+# Editor/OS
 .vscode/
 .DS_Store
 Thumbs.db
