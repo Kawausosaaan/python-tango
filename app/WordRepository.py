@@ -1,4 +1,4 @@
-# app/repository.py
+# app/WordRepository.py
 from __future__ import annotations
 
 import json

@@ -12,10 +12,15 @@ class LeftPanel(tk.Frame):
     """Left pane (tree). Calls back with selected iid string."""
 
     def __init__(
-        self, parent: tk.Widget, *, on_select_iid: Callable[[str], None]
+        self,
+        parent: tk.Widget,
+        *,
+        on_select_iid: Callable[[str], None],
+        on_edit_word: Callable[[int], None] | None = None,
     ) -> None:
         super().__init__(parent)
         self.on_select_iid = on_select_iid
+        self.on_edit_word = on_edit_word
         self._build()
 
     def _build(self) -> None:
@@ -29,7 +34,8 @@ class LeftPanel(tk.Frame):
         self.tree.bind(
             "<Button-1>", lambda e: self.winfo_toplevel().focus_set(), add="+"
         )
-
+        # ダブルクリックで w: ノード編集
+        self.tree.bind("<Double-1>", self._on_dblclick)
         self.tree.bind("<<TreeviewSelect>>", self._on_select)
 
     def rebuild(self, words: List[WordItem]) -> None:
@@ -69,3 +75,12 @@ class LeftPanel(tk.Frame):
             sel = self.tree.selection()
             if sel:
                 self.on_select_iid(sel[0])
+
+    def _on_dblclick(self, evt=None) -> None:
+        item = self.tree.identify_row(evt.y) if evt else ""
+        if item and item.startswith("w:") and self.on_edit_word:
+            try:
+                idx = int(item.split(":")[1])
+                self.on_edit_word(idx)
+            except Exception:
+                pass

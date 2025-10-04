@@ -49,7 +49,12 @@ class MainPanel:
         main.pack(fill="both", expand=True)
 
         # left
-        self.left = LeftPanel(main, on_select_iid=self._on_tree_select_iid)
+        self.left = LeftPanel(
+            main,
+            on_select_iid=self._on_tree_select_iid,
+            on_edit_word=self._on_tree_edit_word,
+        )
+
         self.left.pack(side="left", fill="y")
         self.left.pack_propagate(False)
         self.left.configure(width=260)
@@ -305,6 +310,38 @@ class MainPanel:
                     self._apply_cursor()
 
         AddWordDialog(self.root, on_submit=on_submit, title="単語追加")
+
+    def _on_tree_edit_word(self, idx: int) -> None:
+        if not (0 <= idx < len(self.words)):
+            return
+        current = dict(self.words[idx])
+
+        def on_submit(updated: WordItem) -> None:
+            # 変更を反映して保存
+            self.words[idx] = {
+                "word": updated.get("word", ""),
+                "meaning": updated.get("meaning", ""),
+                "genre": updated.get("genre", ""),
+            }
+            self.repo.save(self.words)
+
+            # ツリー再構築＆同じ項目を再選択
+            self.left.rebuild(self.words)
+            self.current_index = idx
+            iid = f"w:{idx}"
+            if self.left.tree.exists(iid):
+                self.left.tree.selection_set(iid)
+                self.left.tree.focus(iid)
+                self.left.tree.see(iid)
+
+            # 右ペインも更新
+            self.current_word = self.words[idx]
+            self.right.set_word(self.current_word.get("word", ""))
+            self.right.set_meaning("???")
+
+        AddWordDialog(
+            self.root, on_submit=on_submit, initial=current, title="単語を編集"
+        )
 
     def open_list_window(self) -> None:
         def on_changed() -> None:

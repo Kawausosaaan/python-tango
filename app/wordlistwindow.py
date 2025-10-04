@@ -1,4 +1,4 @@
-# app/wordlistwindow.py
+# app/WordListWindow.py
 from __future__ import annotations
 
 import tkinter as tk
