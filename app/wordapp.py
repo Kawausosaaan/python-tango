@@ -6,9 +6,10 @@ import tkinter.font as tkfont
 from typing import Callable, List, Optional
 
 from .dialogs import AddWordDialog
+from .genre_tree_pane import GenreTreePane
 from .list_window import WordListWindow
-from .panes import GenreTreePane, StudyPane
 from .repository import WordRepository
+from .study_pane import StudyPane
 from .types_ import WordItem
 
 
