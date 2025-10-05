@@ -26,6 +26,7 @@
   {
     "word": "testtesttesttesttest",
     "meaning": "testtesttesttesttest",
+    "genre": "",
     "word_runs": [
       {
         "text": "testtesttesttes"
@@ -37,7 +38,11 @@
     ],
     "meaning_runs": [
       {
-        "text": "testtesttesttesttest"
+        "text": "testtesttesttest"
+      },
+      {
+        "text": "test",
+        "fg": "blue"
       }
     ]
   }

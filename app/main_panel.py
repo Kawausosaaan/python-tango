@@ -699,6 +699,9 @@ class MainPanel:
             if hasattr(self.right, "set_word"):
                 self.right.set_word(item.get("word", ""))
 
-        # meaning は初期表示では隠す（"???"）。表示は show_meaning() に任せる。
-        if hasattr(self.right, "set_meaning"):
-            self.right.set_meaning("???")
+        # meaning
+        if isinstance(m_runs, list) and m_runs:
+            self._render_runs(self.right.meaning_area, m_runs)
+        else:
+            if hasattr(self.right, "set_meaning"):
+                self.right.set_meaning(item.get("meaning", ""))

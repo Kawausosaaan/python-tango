@@ -28,6 +28,15 @@ class LeftPanel(tk.Frame):
         self.tree = ttk.Treeview(self, show="tree", selectmode="browse")
         ys = tk.Scrollbar(self, orient="vertical", command=self.tree.yview)
         self.tree.configure(yscrollcommand=ys.set)
+
+        # 色タグ（Treeview用）: 単語の色と同期
+        try:
+            self.tree.tag_configure("fg::red", foreground="red")
+            self.tree.tag_configure("fg::blue", foreground="blue")
+            self.tree.tag_configure("fg::black", foreground="black")
+        except Exception:
+            pass
+
         self.tree.pack(side="left", fill="both", expand=True)
         ys.pack(side="right", fill="y")
         # Treeview にフォーカスを残さない（a/d をグローバルで取りやすくする）
@@ -65,7 +74,22 @@ class LeftPanel(tk.Frame):
         for i, w in enumerate(words):
             gpath = (w.get("genre") or "").strip()
             parent = ensure_node(gpath) if gpath else root_misc
-            self.tree.insert(parent, "end", iid=f"w:{i}", text=w.get("word", ""))
+
+            # 色タグ同期: word_runs の最初の有色セグメントを採用（なければ黒）
+            tag = ""
+            runs = w.get("word_runs") if isinstance(w, dict) else None
+            if isinstance(runs, list) and runs:
+                first_fg = next((seg.get("fg") for seg in runs if isinstance(seg, dict) and seg.get("fg")), None)
+                if first_fg in ("red", "blue"):
+                    tag = f"fg::{first_fg}"
+                elif isinstance(first_fg, str) and first_fg:
+                    tag = f"fg::{first_fg}"
+                else:
+                    tag = "fg::black"
+            else:
+                tag = "fg::black"
+            self.tree.insert(parent, "end", iid=f"w:{i}", text=w.get("word", ""), tags=(tag,))
+
 
         # ルート直下のジャンルは展開しておく
         for iid in self.tree.get_children(""):

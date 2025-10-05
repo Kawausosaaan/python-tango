@@ -60,7 +60,12 @@ class AddWordDialog(tk.Toplevel):
         sbw = tk.Scrollbar(wwrap, command=self.e_word.yview)
         sbw.grid(row=0, column=1, sticky="ns")
         self.e_word.configure(yscrollcommand=sbw.set)
-        self.e_word.insert("1.0", self.initial.get("word", ""))
+        if isinstance(self.initial.get("word_runs"), list) and self.initial.get(
+            "word_runs"
+        ):
+            self._render_runs(self.e_word, self.initial.get("word_runs"))
+        else:
+            self.e_word.insert("1.0", self.initial.get("word", ""))
 
         # meaning
         tk.Label(self, text="意味:").grid(row=2, column=0, sticky="nw", **pad)
@@ -74,7 +79,12 @@ class AddWordDialog(tk.Toplevel):
         sbm = tk.Scrollbar(mwrap, command=self.e_mean.yview)
         sbm.grid(row=0, column=1, sticky="ns")
         self.e_mean.configure(yscrollcommand=sbm.set)
-        self.e_mean.insert("1.0", self.initial.get("meaning", ""))
+        if isinstance(self.initial.get("meaning_runs"), list) and self.initial.get(
+            "meaning_runs"
+        ):
+            self._render_runs(self.e_mean, self.initial.get("meaning_runs"))
+        else:
+            self.e_mean.insert("1.0", self.initial.get("meaning", ""))
 
         # genre
         tk.Label(self, text="ジャンル（例: 食べ物/果物）:").grid(
@@ -98,9 +108,7 @@ class AddWordDialog(tk.Toplevel):
         for txt in (self.e_word, self.e_mean):
             txt.tag_configure("fg::red", foreground="red")
             txt.tag_configure("fg::blue", foreground="blue")
-            # black は「色を外す」動作にするのでタグは不要でもよいが、
-            # 明示したい場合は下記を有効化：
-            # txt.tag_configure("black", foreground="black")
+            # black は「色を外す」動作にするのでタグは不要でもよい
 
         # keys
         # ショートカット: Ctrl-1=赤, Ctrl-2=青, Ctrl-3=黒
@@ -110,7 +118,29 @@ class AddWordDialog(tk.Toplevel):
 
         self.e_word.focus_set()
 
-    # --- ここは _submit（※ クラス直下のインデントに置いてね！）---
+    # --- runs を Text に反映 ---
+    def _render_runs(self, txt: tk.Text, runs: list) -> None:
+        txt.configure(state="normal")
+        txt.delete("1.0", "end")
+        # ensure tags
+        try:
+            txt.tag_configure("fg::red", foreground="red")
+            txt.tag_configure("fg::blue", foreground="blue")
+        except Exception:
+            pass
+        for seg in runs:
+            if not isinstance(seg, dict):
+                continue
+            t = seg.get("text", "")
+            if not isinstance(t, str):
+                continue
+            tags = []
+            fg = seg.get("fg")
+            if isinstance(fg, str) and fg:
+                tags.append(f"fg::{fg}")
+            txt.insert("end", t, tuple(tags) if tags else ())
+        # leave editable; do not disable in dialog
+
     def _submit(self) -> None:
         def collect_runs(txt: tk.Text) -> list:
             content = txt.get("1.0", "end-1c")
@@ -173,7 +203,6 @@ class AddWordDialog(tk.Toplevel):
         # word/meaning どちらかにフォーカスがない場合は word に適用
         return self.e_word if self.e_word.winfo_exists() else None
 
-    # --- ここは _apply_color（既存）。中身のタグ名だけ直す ---
     def _apply_color(self, color: str) -> None:
         """選択中の範囲に色タグを適用。黒は赤/青タグの削除で実現。"""
         txt = self._active_text()
