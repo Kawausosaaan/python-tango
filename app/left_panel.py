@@ -1,4 +1,4 @@
-# app/LeftPanel.py
+# app/left_panel.py
 from __future__ import annotations
 
 import tkinter as tk

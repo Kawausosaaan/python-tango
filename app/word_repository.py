@@ -1,7 +1,8 @@
-# app/WordRepository.py
+# app/word_repository.py
 from __future__ import annotations
 
 import json
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -75,8 +76,19 @@ class WordRepository:
 
                 out.append(item)
             return out
-        except Exception:
-            # 壊れたJSONなどは空配列を返す
+        # load() 内の except に置き換え
+        except Exception as e:
+            try:
+                # 壊れたファイルを退避
+                ts = datetime.now().strftime("%Y%m%d-%H%M%S")
+                backup = self.path.with_name(
+                    self.path.stem + f".bad-{ts}" + self.path.suffix
+                )
+                if self.path.exists():
+                    self.path.replace(backup)
+            except Exception:
+                pass
+            # 空配列を返す（必要なら logger.warning も）
             return []
 
     def save(self, words: List[WordItem]) -> None:

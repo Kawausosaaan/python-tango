@@ -1,4 +1,4 @@
-# app/AddWordDialog.py
+# app/add_word_dialog.py
 from __future__ import annotations
 
 import tkinter as tk
@@ -96,8 +96,8 @@ class AddWordDialog(tk.Toplevel):
 
         # color tags (両テキストに同じタグ定義)
         for txt in (self.e_word, self.e_mean):
-            txt.tag_configure("red", foreground="red")
-            txt.tag_configure("blue", foreground="blue")
+            txt.tag_configure("fg::red", foreground="red")
+            txt.tag_configure("fg::blue", foreground="blue")
             # black は「色を外す」動作にするのでタグは不要でもよいが、
             # 明示したい場合は下記を有効化：
             # txt.tag_configure("black", foreground="black")
@@ -110,6 +110,61 @@ class AddWordDialog(tk.Toplevel):
 
         self.e_word.focus_set()
 
+    # --- ここは _submit（※ クラス直下のインデントに置いてね！）---
+    def _submit(self) -> None:
+        def collect_runs(txt: tk.Text) -> list:
+            content = txt.get("1.0", "end-1c")
+            if not content:
+                return []
+            runs = []
+            i = 0
+            cur_fg = None
+            buf = []
+
+            def flush():
+                nonlocal buf, cur_fg, runs
+                if buf:
+                    seg = {"text": "".join(buf)}
+                    if cur_fg:
+                        seg["fg"] = cur_fg
+                    runs.append(seg)
+                    buf = []
+
+            for ch in content:
+                index = f"1.0 + {i} chars"
+                tags = txt.tag_names(index)
+                # fg:: の最初を採用
+                fg = None
+                for t in tags:
+                    if t.startswith("fg::"):
+                        fg = t[4:]  # "fg::red" -> "red"
+                        break
+                if fg != cur_fg:
+                    flush()
+                    cur_fg = fg
+                buf.append(ch)
+                i += 1
+
+            flush()
+            return runs
+
+        w = self.e_word.get("1.0", "end-1c").strip()
+        m = self.e_mean.get("1.0", "end-1c").strip()
+        g = self.e_genre.get().strip()
+
+        w_runs = collect_runs(self.e_word)
+        m_runs = collect_runs(self.e_mean)
+
+        item = {"word": w, "meaning": m, "genre": g}
+        if w_runs:
+            item["word_runs"] = w_runs
+        if m_runs:
+            item["meaning_runs"] = m_runs
+
+        if self.on_submit and (w or m or g or w_runs or m_runs):
+            self.on_submit(item)
+        self.destroy()
+
     def _active_text(self) -> tk.Text | None:
         """直近でフォーカスのある Text を返す。なければ None。"""
         w = self.focus_get()
@@ -118,6 +173,7 @@ class AddWordDialog(tk.Toplevel):
         # word/meaning どちらかにフォーカスがない場合は word に適用
         return self.e_word if self.e_word.winfo_exists() else None
 
+    # --- ここは _apply_color（既存）。中身のタグ名だけ直す ---
     def _apply_color(self, color: str) -> None:
         """選択中の範囲に色タグを適用。黒は赤/青タグの削除で実現。"""
         txt = self._active_text()
@@ -127,78 +183,19 @@ class AddWordDialog(tk.Toplevel):
             start = txt.index("sel.first")
             end = txt.index("sel.last")
         except tk.TclError:
-            # 選択がなければ何もしない
             return
 
-        # 既存の色タグを外す
-        txt.tag_remove("red", start, end)
-        txt.tag_remove("blue", start, end)
+        # 既存の色タグ（統一した命名）を外す
+        txt.tag_remove("fg::red", start, end)
+        txt.tag_remove("fg::blue", start, end)
+
         if color == "red":
-            txt.tag_add("red", start, end)
+            txt.tag_add("fg::red", start, end)
         elif color == "blue":
-            txt.tag_add("blue", start, end)
+            txt.tag_add("fg::blue", start, end)
         else:
-            # black: 何もタグを付けず既定色（黒）に戻す
+            # black: タグ無し=既定色（黒）
             pass
-
-        def _submit(self) -> None:
-            def collect_runs(txt: tk.Text) -> list:
-                content = txt.get("1.0", "end-1c")
-                if not content:
-                    return []
-
-                # 文字ごとに前景色タグを拾って run をまとめる
-                runs = []
-                i = 0
-                cur_fg = None
-                buf = []
-
-                def flush():
-                    nonlocal buf, cur_fg, runs
-                    if buf:
-                        seg = {"text": "".join(buf)}
-                        if cur_fg:
-                            seg["fg"] = cur_fg
-                        runs.append(seg)
-                        buf = []
-
-                for ch in content:
-                    index = f"1.0 + {i} chars"
-                    tags = txt.tag_names(index)
-                    # fg::* の最初を採用（なければ None）
-                    fg = None
-                    for t in tags:
-                        if t.startswith("fg::"):
-                            fg = t[4:]  # "fg::red" -> "red"
-                            break
-
-                    if fg != cur_fg:
-                        flush()
-                        cur_fg = fg
-                    buf.append(ch)
-                    i += 1
-
-                flush()
-                # 全部デフォ色の場合は空扱いでもOKだが、そのまま返しておく
-                return runs
-
-            w = self.e_word.get("1.0", "end-1c").strip()
-            m = self.e_mean.get("1.0", "end-1c").strip()
-            g = self.e_genre.get().strip()
-
-            # 追加：runs も収集
-            w_runs = collect_runs(self.e_word)
-            m_runs = collect_runs(self.e_mean)
-
-            item = {"word": w, "meaning": m, "genre": g}
-            if w_runs:
-                item["word_runs"] = w_runs
-            if m_runs:
-                item["meaning_runs"] = m_runs
-
-            if self.on_submit and (w or m or g or w_runs or m_runs):
-                self.on_submit(item)
-            self.destroy()
 
     def _cancel(self) -> None:
         self.destroy()

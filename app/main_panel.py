@@ -1,4 +1,4 @@
-# app/MainPanel.py
+# app/main_panel.py
 from __future__ import annotations
 
 import random
