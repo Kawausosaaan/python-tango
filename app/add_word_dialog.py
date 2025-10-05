@@ -188,7 +188,6 @@ class AddWordDialog(tk.Toplevel):
         # 既存の色タグ（統一した命名）を外す
         txt.tag_remove("fg::red", start, end)
         txt.tag_remove("fg::blue", start, end)
-
         if color == "red":
             txt.tag_add("fg::red", start, end)
         elif color == "blue":

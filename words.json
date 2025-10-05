@@ -22,5 +22,23 @@
   {
     "word": "journalctlコマンドとは？",
     "meaning": "・systemd環境でログを一元管理してるジャーナルログを参照するコマンド。\n・-kオプションをつけると「カーネル由来のログだけ」をフィルタして表示する。\n・つまり、journalctl -k =「カーネルメッセージだけ抜き出して表示」 = dmesg とほぼ同じ出力。"
+  },
+  {
+    "word": "testtesttesttesttest",
+    "meaning": "testtesttesttesttest",
+    "word_runs": [
+      {
+        "text": "testtesttesttes"
+      },
+      {
+        "text": "ttest",
+        "fg": "blue"
+      }
+    ],
+    "meaning_runs": [
+      {
+        "text": "testtesttesttesttest"
+      }
+    ]
   }
 ]

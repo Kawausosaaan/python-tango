@@ -97,14 +97,27 @@ class WordListWindow(tk.Toplevel):
         current = dict(self.words_ref[idx])
 
         def on_submit(updated: WordItem) -> None:
-            self.words_ref[idx] = {
-                "word": updated.get("word", ""),
-                "meaning": updated.get("meaning", ""),
-                "genre": updated.get("genre", ""),
+            # 既存をベースに更新（無いキーは残す）
+            new_item = {
+                "word": updated.get("word", current.get("word", "")),
+                "meaning": updated.get("meaning", current.get("meaning", "")),
+                "genre": updated.get("genre", current.get("genre", "")),
             }
+            # runs を反映（無ければ既存を温存）
+            if isinstance(updated.get("word_runs"), list):
+                new_item["word_runs"] = updated["word_runs"]
+            elif "word_runs" in current:
+                new_item["word_runs"] = current["word_runs"]
+
+            if isinstance(updated.get("meaning_runs"), list):
+                new_item["meaning_runs"] = updated["meaning_runs"]
+            elif "meaning_runs" in current:
+                new_item["meaning_runs"] = current["meaning_runs"]
+
+            self.words_ref[idx] = new_item
             self.refresh()
             if self.on_changed:
-                self.on_changed()
+                self.on_changed()  # MainPanel 側で repo.save(...) が走る
 
         AddWordDialog(self, on_submit=on_submit, initial=current, title="単語を編集")
 

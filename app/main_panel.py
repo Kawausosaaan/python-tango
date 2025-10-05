@@ -4,6 +4,7 @@ from __future__ import annotations
 import random
 import tkinter as tk
 import tkinter.font as tkfont
+from contextlib import contextmanager
 from typing import Callable, List, Optional
 
 from .add_word_dialog import AddWordDialog
@@ -37,6 +38,16 @@ class MainPanel:
         self._bind_keys()
         self._build_order()  # initial random order
         self._suspend_select = False
+
+    @contextmanager
+    def _suspend_tree_select(self):
+        """Treeviewの選択イベントを一時停止（idleで解除）"""
+        self._suspend_select = True
+        try:
+            yield
+        finally:
+            # 同フレーム再発火を防ぐため idle で解除
+            self.root.after_idle(lambda: setattr(self, "_suspend_select", False))
 
     # ----- layout -------------------------------------------------------------
     def _place_right_half(self) -> None:
@@ -136,13 +147,24 @@ class MainPanel:
             return
         t = self.left.tree
 
+        def _set_current_from_iid(iid_str: str) -> None:
+            # "w:123" -> 123 を current_index に
+            try:
+                self.current_index = int(iid_str.split(":")[1])
+            except Exception:
+                self.current_index = -1
+
         if iid.startswith("w:"):
             parent = t.parent(iid)
             self.active_parent = parent
             ws = [c for c in t.get_children(parent) if c.startswith("w:")]
             ws.sort(key=t.index)
             self.cursor_in_parent = ws.index(iid) if iid in ws else -1
-            self._apply_cursor()
+
+            self._apply_cursor()  # ← 既存のカーソル適用（選択移動など）
+            _set_current_from_iid(iid)  # ★ 追加：current_index を更新
+            self._update_right_pane()  # ★ 追加：runs 優先で右ペイン描画
+
             self.root.after(0, self.root.focus_set)
             return
 
@@ -151,10 +173,25 @@ class MainPanel:
             ws = [c for c in t.get_children(iid) if c.startswith("w:")]
             ws.sort(key=t.index)
             if ws:
+                # どれかをアクティブに（既存どおり）
                 self.cursor_in_parent = random.SystemRandom().randrange(len(ws))
                 self._apply_cursor()
+
+                # ★ 追加：いまアクティブな w: を特定して current_index を反映
+                # _apply_cursor 内で Tree の選択を変えているなら、その結果から拾う
+                try:
+                    sel = t.selection()
+                    if sel and sel[0].startswith("w:"):
+                        _set_current_from_iid(sel[0])
+                    else:
+                        _set_current_from_iid(ws[self.cursor_in_parent])
+                except Exception:
+                    _set_current_from_iid(ws[self.cursor_in_parent])
+
+                self.root.after_idle(self._update_right_pane)
             else:
                 self.cursor_in_parent = -1
+                # 単語が無いときはプレーン表示（ここは runs 無しでOK）
                 self.right.set_word("(単語がありません)")
                 self.right.set_meaning("")
             self.root.after(0, self.root.focus_set)
@@ -170,7 +207,13 @@ class MainPanel:
             ]
             self.pos = -1
 
+        # 既存の “次の単語へ” ロジック
         self.next_word()
+
+        # ★ 追加：next_word() の中で current_index を更新している前提。
+        # もししていないなら、そこで更新するか、ここで選択から拾う。
+        self._update_right_pane()  # ← 最後に右ペイン更新を一発
+
         self.root.after(0, self.root.focus_set)
 
     # 可視順の“兄弟ワード” iid リストを取得
@@ -218,11 +261,12 @@ class MainPanel:
         # ここをガード
         self._suspend_select = True
         try:
-            self.left.tree.selection_set(iid)
+            cur = self.left.tree.selection()
+            if not (cur and cur[0] == iid):
+                self.left.tree.selection_set(iid)
             self.left.tree.focus(iid)
             self.left.tree.see(iid)
         finally:
-            # 即時解除だと同フレームで再発火することがあるので idle 後に解除
             self.root.after_idle(lambda: setattr(self, "_suspend_select", False))
 
     # ----- study actions ------------------------------------------------------
@@ -256,10 +300,13 @@ class MainPanel:
         # 意味は隠す
         self.right.set_meaning("???")
 
-        # ツリー選択同期
-        self.left.tree.selection_set(iid)
-        self.left.tree.focus(iid)
-        self.left.tree.see(iid)
+        # ツリー選択同期（ガード＋重複回避）
+        with self._suspend_tree_select():
+            cur = self.left.tree.selection()
+            if not (cur and cur[0] == iid):
+                self.left.tree.selection_set(iid)
+            self.left.tree.focus(iid)
+            self.left.tree.see(iid)
 
     def prev_word(self) -> None:
         """ツリーの表示順で前の単語へ（兄弟ノード順に従う）"""
@@ -291,10 +338,13 @@ class MainPanel:
         # 意味は隠す
         self.right.set_meaning("???")
 
-        # ツリー選択同期
-        self.left.tree.selection_set(iid)
-        self.left.tree.focus(iid)
-        self.left.tree.see(iid)
+        # ツリー選択同期（ガード＋重複回避）
+        with self._suspend_tree_select():
+            cur = self.left.tree.selection()
+            if not (cur and cur[0] == iid):
+                self.left.tree.selection_set(iid)
+            self.left.tree.focus(iid)
+            self.left.tree.see(iid)
 
     def show_meaning(self) -> None:
         """現在語の意味を表示（runs があれば優先）"""
@@ -400,27 +450,54 @@ class MainPanel:
         current = dict(self.words[idx])
 
         def on_submit(updated: WordItem) -> None:
-            # 変更を反映して保存
-            self.words[idx] = {
-                "word": updated.get("word", ""),
-                "meaning": updated.get("meaning", ""),
-                "genre": updated.get("genre", ""),
+            # 既存をベースに更新（無いキーは残す）
+            new_item = {
+                "word": updated.get("word", current.get("word", "")),
+                "meaning": updated.get("meaning", current.get("meaning", "")),
+                "genre": updated.get("genre", current.get("genre", "")),
             }
+            # ★ここが肝：runs を反映（無ければ既存を温存）
+            if isinstance(updated.get("word_runs"), list):
+                new_item["word_runs"] = updated["word_runs"]
+            elif "word_runs" in current:
+                new_item["word_runs"] = current["word_runs"]
+
+            if isinstance(updated.get("meaning_runs"), list):
+                new_item["meaning_runs"] = updated["meaning_runs"]
+            elif "meaning_runs" in current:
+                new_item["meaning_runs"] = current["meaning_runs"]
+
+            # 反映＆保存
+            self.words[idx] = new_item
             self.repo.save(self.words)
 
-            # ツリー再構築＆同じ項目を再選択
-            self.left.rebuild(self.words)
-            self.current_index = idx
-            iid = f"w:{idx}"
-            if self.left.tree.exists(iid):
-                self.left.tree.selection_set(iid)
-                self.left.tree.focus(iid)
-                self.left.tree.see(iid)
+            # ツリー再構築＆同じ項目へ戻す
+            with self._suspend_tree_select():
+                self.left.rebuild(self.words)
+                self.current_index = idx
+                iid = f"w:{idx}"
+                if self.left.tree.exists(iid):
+                    cur = self.left.tree.selection()
+                    if not (cur and cur[0] == iid):
+                        self.left.tree.selection_set(iid)
+                    self.left.tree.focus(iid)
+                    self.left.tree.see(iid)
 
-            # 右ペインも更新
+            # 右ペインも runs 優先で更新
             self.current_word = self.words[idx]
-            self.right.set_word(self.current_word.get("word", ""))
-            self.right.set_meaning("???")
+            w_runs = self.current_word.get("word_runs")
+            m_runs = self.current_word.get("meaning_runs")
+            if isinstance(w_runs, list) and w_runs:
+                self._render_runs(self.right.word_area, w_runs)
+            else:
+                self.right.set_word(self.current_word.get("word", ""))
+
+            if isinstance(m_runs, list) and m_runs:
+                self._render_runs(self.right.meaning_area, m_runs)
+            else:
+                self.right.set_meaning(self.current_word.get("meaning", ""))
+
+            self._update_right_pane()
 
         AddWordDialog(
             self.root, on_submit=on_submit, initial=current, title="単語を編集"
@@ -429,27 +506,27 @@ class MainPanel:
     def open_list_window(self) -> None:
         def on_changed() -> None:
             self.repo.save(self.words)
-            self.left.rebuild(self.words)
-            # 現在ジャンルのカーソルを補正
-            if self.active_parent:
-                ws = self._siblings_words()
-                if ws:
-                    # 可能なら同じ単語 idx を探す。なければ範囲内に丸める
-                    if 0 <= self.current_index < len(self.words):
-                        cur_iid = f"w:{self.current_index}"
-                        if cur_iid in ws:
-                            self.cursor_in_parent = ws.index(cur_iid)
+            with self._suspend_tree_select():
+                self.left.rebuild(self.words)
+                # 現在ジャンルのカーソルを補正
+                if self.active_parent:
+                    ws = self._siblings_words()
+                    if ws:
+                        if 0 <= self.current_index < len(self.words):
+                            cur_iid = f"w:{self.current_index}"
+                            if cur_iid in ws:
+                                self.cursor_in_parent = ws.index(cur_iid)
+                            else:
+                                self.cursor_in_parent = min(
+                                    self.cursor_in_parent, len(ws) - 1
+                                )
                         else:
-                            self.cursor_in_parent = min(
-                                self.cursor_in_parent, len(ws) - 1
-                            )
+                            self.cursor_in_parent = 0
                     else:
-                        self.cursor_in_parent = 0
-                    self._apply_cursor()
-                else:
-                    self.cursor_in_parent = -1
-                    self.right.set_word("(単語がありません)")
-                    self.right.set_meaning("")
+                        self.cursor_in_parent = -1
+            # Tree側の更新が済んだあとでカーソル反映
+            if self.cursor_in_parent >= 0:
+                self._apply_cursor()
 
         WordListWindow(self.root, self.words, on_changed=on_changed)
 
@@ -573,3 +650,55 @@ class MainPanel:
 
             widget.insert("end", text, tuple(tags) if tags else ())
         widget.configure(state="disabled")
+
+    def _update_right_pane(self):
+        """現在の self.current_index をもとに右ペインを再描画（runs優先）"""
+        # 選択チェック
+        if not (0 <= getattr(self, "current_index", -1) < len(self.words)):
+            # 何も選択されてないときはクリア
+            if hasattr(self.right, "set_word"):
+                self.right.set_word("")
+            if hasattr(self.right, "set_meaning"):
+                self.right.set_meaning("")
+            return
+
+        item = self.words[self.current_index]
+        w_runs = item.get("word_runs")
+        m_runs = item.get("meaning_runs")
+
+        # ---- いったん右ペインをクリア ----
+        # 1) clear_* がある場合
+        cleared = False
+        if hasattr(self.right, "clear_word"):
+            self.right.clear_word()
+            cleared = True
+        if hasattr(self.right, "clear_meaning"):
+            self.right.clear_meaning()
+            cleared = True
+
+        # 2) なければ Text ウィジェットを直で消す（プロジェクトに合わせて調整）
+        if not cleared:
+            # 右側の Text が word_area / meaning_area という前提（違うなら名称を合わせて）
+            if hasattr(self.right, "word_area"):
+                try:
+                    self.right.word_area.delete("1.0", "end")
+                except Exception:
+                    pass
+            if hasattr(self.right, "meaning_area"):
+                try:
+                    self.right.meaning_area.delete("1.0", "end")
+                except Exception:
+                    pass
+
+        # ---- runs があれば色付きで描画、なければ文字列で表示 ----
+        # word
+        if isinstance(w_runs, list) and w_runs:
+            # _render_runs(self, text_widget, runs_list) という前提
+            self._render_runs(self.right.word_area, w_runs)
+        else:
+            if hasattr(self.right, "set_word"):
+                self.right.set_word(item.get("word", ""))
+
+        # meaning は初期表示では隠す（"???"）。表示は show_meaning() に任せる。
+        if hasattr(self.right, "set_meaning"):
+            self.right.set_meaning("???")

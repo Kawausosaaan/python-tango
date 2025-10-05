@@ -20,6 +20,7 @@ class LeftPanel(tk.Frame):
     ) -> None:
         super().__init__(parent)
         self.on_select_iid = on_select_iid
+        self._last_sel = None  # 追加：直近の選択を記録
         self.on_edit_word = on_edit_word
         self._build()
 
@@ -71,10 +72,17 @@ class LeftPanel(tk.Frame):
             self.tree.item(iid, open=True)
 
     def _on_select(self, _evt=None) -> None:
-        if self.on_select_iid:
-            sel = self.tree.selection()
-            if sel:
-                self.on_select_iid(sel[0])
+        if not self.on_select_iid:
+            return
+        sel = self.tree.selection()
+        if not sel:
+            return
+        iid = sel[0]
+        # 同一選択の重複通知は弾く
+        if self._last_sel == iid:
+            return
+        self._last_sel = iid
+        self.on_select_iid(iid)
 
     def _on_dblclick(self, evt=None) -> None:
         item = self.tree.identify_row(evt.y) if evt else ""
