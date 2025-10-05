@@ -5,7 +5,7 @@ import tkinter as tk
 import tkinter.ttk as ttk
 from typing import Callable, List, Optional
 
-from .AddWordDialog import AddWordDialog
+from .add_word_dialog import AddWordDialog
 from .types_ import WordItem
 
 

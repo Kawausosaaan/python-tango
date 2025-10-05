@@ -3,9 +3,9 @@ from __future__ import annotations
 
 from typing import List
 
-from .MainPanel import MainPanel
+from .main_panel import MainPanel
 from .types_ import WordItem
-from .WordRepository import WordRepository
+from .word_repository import WordRepository
 
 
 def main() -> None:

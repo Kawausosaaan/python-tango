@@ -6,12 +6,12 @@ import tkinter as tk
 import tkinter.font as tkfont
 from typing import Callable, List, Optional
 
-from .AddWordDialog import AddWordDialog
-from .LeftPanel import LeftPanel
-from .RightPanel import RightPanel
+from .add_word_dialog import AddWordDialog
+from .left_panel import LeftPanel
+from .right_panel import RightPanel
 from .types_ import WordItem
-from .WordListWindow import WordListWindow
-from .WordRepository import WordRepository
+from .word_list_window import WordListWindow
+from .word_repository import WordRepository
 
 
 class MainPanel:
