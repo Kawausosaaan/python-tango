@@ -6,7 +6,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from .types_ import WordItem
+from types_ import WordItem
 
 
 class WordRepository:

@@ -1,13 +1,13 @@
 from __future__ import annotations
 
 import tkinter as tk
-from typing import Callable, Optional, Dict, Any, List, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 WordItem = Dict[str, Any]
 
 
 class _TreeAdapter:
-    def __init__(self, owner: 'LeftPanel') -> None:
+    def __init__(self, owner: "LeftPanel") -> None:
         self._o = owner
 
     def get_children(self, iid: str = "") -> List[str]:
@@ -103,7 +103,10 @@ class LeftPanel(tk.Frame):
         self.text.tag_configure("fg::blue", foreground="blue")
         self.text.tag_configure("fg::default", foreground="black")
         self.text.tag_configure("row::sel", background="#cde8ff")
-        self.text.tag_configure("row::genre", foreground="#666", font=("Meiryo", 10, "bold"))
+        self.text.tag_configure(
+            "row::genre", foreground="#666", font=("Meiryo", 10, "bold")
+        )
+        self.text.tag_configure("row::word", font=("Meiryo", 12))
 
         # events
         self.text.bind("<Button-1>", self._on_click)
@@ -165,10 +168,12 @@ class LeftPanel(tk.Frame):
                     for seg in runs:
                         t = seg.get("text", "")
                         fg = seg.get("fg")
-                        tag = f"fg::{fg}" if fg in ("red","blue") else "fg::default"
-                        self.text.insert(f"{line}.end", t, (tag,))
+                        tag = f"fg::{fg}" if fg in ("red", "blue") else "fg::default"
+                        self.text.insert(f"{line}.end", t, ("row::word", tag))
                 else:
-                    self.text.insert(f"{line}.0", it.get("word",""), ("fg::default",))
+                    self.text.insert(
+                        f"{line}.0", it.get("word", ""), ("row::word", "fg::default")
+                    )
                 self.text.insert(f"{line}.end", "\n")
                 line += 1
 
@@ -194,7 +199,9 @@ class LeftPanel(tk.Frame):
         if line is None:
             return
         if self._sel_line is not None:
-            self.text.tag_remove("row::sel", f"{self._sel_line}.0", f"{self._sel_line}.end")
+            self.text.tag_remove(
+                "row::sel", f"{self._sel_line}.0", f"{self._sel_line}.end"
+            )
         self._sel_line = line
         self.text.tag_add("row::sel", f"{line}.0", f"{line}.end")
         self.text.see(f"{line}.0")
@@ -224,7 +231,7 @@ class LeftPanel(tk.Frame):
         lines = sorted(self._line_to_iid.keys())
         try:
             i = lines.index(self._sel_line)
-            ln = lines[max(0, min(len(lines)-1, i+delta))]
+            ln = lines[max(0, min(len(lines) - 1, i + delta))]
             self._select_by_iid(self._line_to_iid[ln], notify=True)
         except ValueError:
             pass
@@ -243,7 +250,7 @@ class LeftPanel(tk.Frame):
         if not iid or not iid.startswith("w:"):
             return
         try:
-            idx_int = int(iid.split(":",1)[1])
+            idx_int = int(iid.split(":", 1)[1])
         except Exception:
             return
 

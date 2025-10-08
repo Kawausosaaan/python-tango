@@ -3,10 +3,9 @@ from __future__ import annotations
 
 from typing import List
 
-from . import logging_setup  # noqa: F401
-from .main_panel import MainPanel
-from .types_ import WordItem
-from .word_repository import WordRepository
+from main_panel import MainPanel
+from types_ import WordItem
+from word_repository import WordRepository
 
 
 def main() -> None:

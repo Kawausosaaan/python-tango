@@ -5,7 +5,7 @@ import tkinter as tk
 import tkinter.ttk as ttk
 from typing import Callable, List
 
-from .types_ import WordItem
+from types_ import WordItem
 
 
 class RightPanel(tk.Frame):

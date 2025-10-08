@@ -4,7 +4,7 @@ import tkinter as tk
 import tkinter.ttk as ttk
 from typing import Callable, Optional
 
-from .types_ import WordItem
+from types_ import WordItem
 
 
 class AddWordDialog(tk.Toplevel):
@@ -35,9 +35,15 @@ class AddWordDialog(tk.Toplevel):
         toolbar = tk.Frame(self)
         toolbar.grid(row=0, column=0, columnspan=2, sticky="w", padx=10, pady=(8, 0))
         tk.Label(toolbar, text="色:").pack(side="left")
-        tk.Button(toolbar, text="赤", width=4, command=lambda: self._apply_color("red")).pack(side="left", padx=4)
-        tk.Button(toolbar, text="青", width=4, command=lambda: self._apply_color("blue")).pack(side="left", padx=4)
-        tk.Button(toolbar, text="黒", width=4, command=lambda: self._apply_color("black")).pack(side="left", padx=4)
+        tk.Button(
+            toolbar, text="赤", width=4, command=lambda: self._apply_color("red")
+        ).pack(side="left", padx=4)
+        tk.Button(
+            toolbar, text="青", width=4, command=lambda: self._apply_color("blue")
+        ).pack(side="left", padx=4)
+        tk.Button(
+            toolbar, text="黒", width=4, command=lambda: self._apply_color("black")
+        ).pack(side="left", padx=4)
         tk.Label(toolbar, text="（選択した範囲に適用）").pack(side="left", padx=8)
 
         # word
@@ -45,12 +51,16 @@ class AddWordDialog(tk.Toplevel):
         wwrap = tk.Frame(self)
         wwrap.grid(row=1, column=1, sticky="nsew", **pad)
         wwrap.columnconfigure(0, weight=1)
-        self.e_word = tk.Text(wwrap, width=40, height=5, font=("Meiryo", 12), wrap="word", undo=True)
+        self.e_word = tk.Text(
+            wwrap, width=40, height=5, font=("Meiryo", 12), wrap="word", undo=True
+        )
         self.e_word.grid(row=0, column=0, sticky="nsew")
         sbw = tk.Scrollbar(wwrap, command=self.e_word.yview)
         sbw.grid(row=0, column=1, sticky="ns")
         self.e_word.configure(yscrollcommand=sbw.set)
-        if isinstance(self.initial.get("word_runs"), list) and self.initial.get("word_runs"):
+        if isinstance(self.initial.get("word_runs"), list) and self.initial.get(
+            "word_runs"
+        ):
             self._render_runs(self.e_word, self.initial.get("word_runs"))
         else:
             self.e_word.insert("1.0", self.initial.get("word", ""))
@@ -60,18 +70,24 @@ class AddWordDialog(tk.Toplevel):
         mwrap = tk.Frame(self)
         mwrap.grid(row=2, column=1, sticky="nsew", **pad)
         mwrap.columnconfigure(0, weight=1)
-        self.e_mean = tk.Text(mwrap, width=40, height=5, font=("Meiryo", 12), wrap="word", undo=True)
+        self.e_mean = tk.Text(
+            mwrap, width=40, height=5, font=("Meiryo", 12), wrap="word", undo=True
+        )
         self.e_mean.grid(row=0, column=0, sticky="nsew")
         sbm = tk.Scrollbar(mwrap, command=self.e_mean.yview)
         sbm.grid(row=0, column=1, sticky="ns")
         self.e_mean.configure(yscrollcommand=sbm.set)
-        if isinstance(self.initial.get("meaning_runs"), list) and self.initial.get("meaning_runs"):
+        if isinstance(self.initial.get("meaning_runs"), list) and self.initial.get(
+            "meaning_runs"
+        ):
             self._render_runs(self.e_mean, self.initial.get("meaning_runs"))
         else:
             self.e_mean.insert("1.0", self.initial.get("meaning", ""))
 
         # genre
-        tk.Label(self, text="ジャンル（例: 食べ物/果物）:").grid(row=3, column=0, sticky="w", padx=10, pady=6)
+        tk.Label(self, text="ジャンル（例: 食べ物/果物）:").grid(
+            row=3, column=0, sticky="w", padx=10, pady=6
+        )
         self.e_genre = tk.Entry(self, width=40, font=("Meiryo", 12))
         self.e_genre.grid(row=3, column=1, sticky="ew", ipady=4, padx=10, pady=6)
         self.e_genre.insert(0, self.initial.get("genre", ""))
@@ -79,8 +95,12 @@ class AddWordDialog(tk.Toplevel):
         # buttons
         btns = tk.Frame(self)
         btns.grid(row=4, column=0, columnspan=2, pady=10)
-        tk.Button(btns, text="保存", width=10, command=self._submit).pack(side="left", padx=6)
-        tk.Button(btns, text="キャンセル", width=10, command=self._cancel).pack(side="left", padx=6)
+        tk.Button(btns, text="保存", width=10, command=self._submit).pack(
+            side="left", padx=6
+        )
+        tk.Button(btns, text="キャンセル", width=10, command=self._cancel).pack(
+            side="left", padx=6
+        )
 
         # color tags
         for txt in (self.e_word, self.e_mean):

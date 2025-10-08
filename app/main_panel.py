@@ -7,12 +7,12 @@ import tkinter.font as tkfont
 from contextlib import contextmanager
 from typing import Callable, List, Optional
 
-from .add_word_dialog import AddWordDialog
-from .left_panel import LeftPanel
-from .right_panel import RightPanel
-from .types_ import WordItem
-from .word_list_window import WordListWindow
-from .word_repository import WordRepository
+from add_word_dialog import AddWordDialog
+from left_panel import LeftPanel
+from right_panel import RightPanel
+from types_ import WordItem
+from word_list_window import WordListWindow
+from word_repository import WordRepository
 
 
 class MainPanel:
@@ -347,14 +347,22 @@ class MainPanel:
             self.left.tree.see(iid)
 
     def show_meaning(self) -> None:
-        """現在語の意味を表示（runs があれば優先）"""
+        """現在語の意味を表示（runs があれば優先）
+        ※ _render_with_runs を使って、英日タグ＆自動高さを統一
+        """
         if not self.current_word:
             return
         m_runs = self.current_word.get("meaning_runs")
         if isinstance(m_runs, list) and m_runs:
-            self._render_runs(self.right.meaning_area, m_runs)
+            # 統一レンダラーで英日フォント＆高さ自動を有効化
+            self.insert_mixed_text(
+                self.right.meaning_area, self.current_word.get("meaning", "")
+            )
         else:
-            self.right.set_meaning(self.current_word.get("meaning", ""))
+            # 従来レンダラー（英日タグ＋自動高さ）
+            self.insert_mixed_text(
+                self.right.meaning_area, self.current_word.get("meaning", "")
+            )
 
     # ----- renderer (mixed JP/EN with auto height) ---------------------------
     def insert_mixed_text(self, widget: tk.Text, text_or_runs) -> None:
