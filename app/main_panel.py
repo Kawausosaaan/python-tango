@@ -347,24 +347,19 @@ class MainPanel:
             self.left.tree.see(iid)
 
     def show_meaning(self) -> None:
-        """現在語の意味を表示（runs があれば優先）
-        ※ _render_with_runs を使って、英日タグ＆自動高さを統一
-        """
+        """現在語の意味を表示（runs があれば優先）。英日フォント＆自動高さを統一。"""
         if not self.current_word:
             return
         m_runs = self.current_word.get("meaning_runs")
         if isinstance(m_runs, list) and m_runs:
-            # 統一レンダラーで英日フォント＆高さ自動を有効化
-            self.insert_mixed_text(
-                self.right.meaning_area, self.current_word.get("meaning", "")
+            self._render_with_runs(
+                self.right.meaning_area, m_runs, self.current_word.get("meaning", "")
             )
         else:
-            # 従来レンダラー（英日タグ＋自動高さ）
             self.insert_mixed_text(
                 self.right.meaning_area, self.current_word.get("meaning", "")
             )
 
-    # ----- renderer (mixed JP/EN with auto height) ---------------------------
     def insert_mixed_text(self, widget: tk.Text, text_or_runs) -> None:
         # text_or_runs: str | List[{"text": str, "color": "red"|"blue"|""}]
         widget.configure(state="normal")
@@ -562,57 +557,86 @@ class MainPanel:
 
     def _render_with_runs(self, widget: tk.Text, runs, fallback_text: str) -> None:
         """runs(list[{'text','fg','bg','bold','italic','underline'}])があれば優先表示。
-        無ければ fallback_text を従来レンダラーで表示。
+        無ければ fallback_text を従来レンダラーで表示。英日フォントタグと自動高さを常に適用。
         """
         if not runs:
-            # 既存の混在レンダラーを使用（英日フォント＆高さ自動）
             self.insert_mixed_text(widget, fallback_text)
             return
 
-        # runs で描画
+        def ensure_fg(tag_widget: tk.Text, color: str) -> str:
+            t = f"fg::{color}"
+            try:
+                tag_widget.tag_cget(t, "foreground")
+            except Exception:
+                try:
+                    tag_widget.tag_config(t, foreground=color)
+                except Exception:
+                    pass
+            return t
+
         widget.configure(state="normal")
         widget.delete("1.0", "end")
         for seg in runs:
+            if not isinstance(seg, dict):
+                widget.insert("end", str(seg))
+                continue
             text = seg.get("text", "")
-            tags = []
             fg = seg.get("fg")
             bg = seg.get("bg")
-            if fg:
-                t = f"fg_{fg}"
-                if not widget.tag_names().__contains__(t):
-                    widget.tag_config(t, foreground=fg)
-                tags.append(t)
-            if bg:
-                t = f"bg_{bg}"
-                if not widget.tag_names().__contains__(t):
-                    widget.tag_config(t, background=bg)
-                tags.append(t)
-            if seg.get("bold"):
-                if "bold" not in widget.tag_names():
-                    import tkinter.font as tkfont
+            apply_bold = bool(seg.get("bold"))
+            apply_italic = bool(seg.get("italic"))
+            apply_ul = bool(seg.get("underline"))
 
-                    base = tkfont.Font(font=widget.cget("font"))
-                    boldf = tkfont.Font(font=widget.cget("font"))
-                    boldf.configure(weight="bold")
-                    widget.tag_config("bold", font=boldf)
-                tags.append("bold")
-            if seg.get("italic"):
-                if "italic" not in widget.tag_names():
+            start_idx = widget.index("end-1c")
+            for ch in text:
+                lang_tag = "japanese" if self.is_japanese(ch) else "english"
+                widget.insert("end", ch, (lang_tag,))
+            end_idx = widget.index("end-1c")
+
+            tags_to_add = []
+            if isinstance(fg, str) and fg:
+                tags_to_add.append(ensure_fg(widget, fg))
+            if isinstance(bg, str) and bg:
+                bg_tag = f"bg::{bg}"
+                try:
+                    widget.tag_config(bg_tag, background=bg)
+                except Exception:
+                    pass
+                tags_to_add.append(bg_tag)
+            if apply_bold:
+                try:
+                    widget.tag_config("bold", font=(widget.cget("font"), 10, "bold"))
+                except Exception:
+                    pass
+                tags_to_add.append("bold")
+            if apply_italic:
+                try:
                     import tkinter.font as tkfont
 
                     ital = tkfont.Font(font=widget.cget("font"))
                     ital.configure(slant="italic")
                     widget.tag_config("italic", font=ital)
-                tags.append("italic")
-            if seg.get("underline"):
-                if "ul" not in widget.tag_names():
+                except Exception:
+                    pass
+                tags_to_add.append("italic")
+            if apply_ul:
+                try:
                     widget.tag_config("ul", underline=1)
-                tags.append("ul")
+                except Exception:
+                    pass
+                tags_to_add.append("ul")
 
-            widget.insert("end", text, tuple(tags) if tags else ())
+            if tags_to_add:
+                try:
+                    widget.tag_add(tuple(tags_to_add), start_idx, end_idx)
+                except Exception:
+                    for t in tags_to_add:
+                        try:
+                            widget.tag_add(t, start_idx, end_idx)
+                        except Exception:
+                            pass
+
         widget.configure(state="disabled")
-
-        # 高さ自動（既存ヘルパを活用）
         min_h = getattr(widget, "_auto_min_h", 1)
         max_h = getattr(widget, "_auto_max_h", 6)
         self._adjust_text_size(widget, min_height=min_h, max_height=max_h)
@@ -623,22 +647,19 @@ class MainPanel:
         self._render_with_runs(
             self.right.word_area, item.get("word_runs"), item.get("word", "")
         )
-        # 意味は「隠す」仕様のまま
         self.insert_mixed_text(self.right.meaning_area, "???")
 
     def _render_runs(self, widget: tk.Text, runs: list) -> None:
-        """runs = [{"text": "...", "fg": "red/blue/#rrggbb/black", ...}] を描画"""
-        widget.configure(state="normal")
-        widget.delete("1.0", "end")
+        """Backward-compatible wrapper: route to _render_with_runs with empty fallback."""
+        self._render_with_runs(widget, runs, "")
 
-        # よく使う前景色タグを用意（なければ作る）
-        def ensure_fg_tag(color: str) -> str:
-            tag = f"fg::{color}"
-            try:
-                widget.tag_cget(tag, "foreground")
-            except Exception:
-                widget.tag_config(tag, foreground=color)
-            return tag
+    def ensure_fg_tag(color: str) -> str:
+        tag = f"fg::{color}"
+        try:
+            widget.tag_cget(tag, "foreground")
+        except Exception:
+            widget.tag_config(tag, foreground=color)
+        return tag
 
         for seg in runs:
             if not isinstance(seg, dict):
@@ -657,7 +678,7 @@ class MainPanel:
             # if seg.get("underline") is True: ...
 
             widget.insert("end", text, tuple(tags) if tags else ())
-        widget.configure(state="disabled")
+            widget.configure(state="disabled")
 
     def _update_right_pane(self):
         """現在の self.current_index をもとに右ペインを再描画（runs優先）"""
