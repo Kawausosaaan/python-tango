@@ -237,27 +237,37 @@ class LeftPanel(tk.Frame):
             pass
         return "break"
 
+    
     def _on_edit(self, evt=None):
-        # Ensure selection for double-click using event Y
-        if (self._sel_line is None) and evt is not None:
+        """編集（ダブルクリック/Enter）。ジャンル行は対象外。"""
+        # もしイベントがある（ダブルクリック等）なら、そのY座標から行を特定
+        if evt is not None and hasattr(evt, "y"):
             ln = self._line_from_y(evt.y)
-            if ln is not None:
-                self._select_by_iid(self._line_to_iid[ln], notify=False)
+            if ln is None:
+                return "break"
+            iid_at_click = self._line_to_iid.get(ln)
+            # ジャンル行なら何もしない（選択も変更しない）
+            if not iid_at_click or not iid_at_click.startswith("w:"):
+                return "break"
+            # 誤選択を避けるため、ここで確実にその行を選択してから続行
+            if self._sel_line != ln:
+                self._select_by_iid(iid_at_click, notify=False)
 
         if self._sel_line is None or self.on_edit_word is None:
-            return
+            return "break"
         iid = self._line_to_iid.get(self._sel_line)
         if not iid or not iid.startswith("w:"):
-            return
+            return "break"
         try:
             idx_int = int(iid.split(":", 1)[1])
         except Exception:
-            return
+            return "break"
 
         # Prefer INT for main_panel._on_tree_edit_word
         for arg in (idx_int, str(idx_int), iid):
             try:
                 self.on_edit_word(arg)  # type: ignore
-                return
+                return "break"
             except TypeError:
                 continue
+        return "break"
